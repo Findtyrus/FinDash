@@ -32,16 +32,34 @@ export async function fetchFMPAll(ticker, apiKey) {
     fetch(`${base}/news/stock?symbols=${ticker}&limit=8&apikey=${key}`).then(r => r.json()),
   ])
 
-  const ratiosVal     = ratios.status     === 'fulfilled' ? ratios.value[0]     : null
-  const keyMetricsVal = keyMetrics.status === 'fulfilled' ? keyMetrics.value[0] : null
+  const ratiosVal     = ratios.status     === 'fulfilled' && Array.isArray(ratios.value)     ? ratios.value[0]     : null
+  const keyMetricsVal = keyMetrics.status === 'fulfilled' && Array.isArray(keyMetrics.value) ? keyMetrics.value[0] : null
 
   return {
-    profile: profile.status === 'fulfilled' ? profile.value[0] : null,
+    profile: profile.status === 'fulfilled' && Array.isArray(profile.value) ? profile.value[0] : null,
     ratios:  ratiosVal || keyMetricsVal ? { ...ratiosVal, ...keyMetricsVal } : null,
-    income:  income.status  === 'fulfilled' ? income.value     : null,
-    balance: balance.status === 'fulfilled' ? balance.value[0] : null,
-    news:    Array.isArray(news.value)      ? news.value       : null,
+    income:  income.status  === 'fulfilled' && Array.isArray(income.value)  ? income.value     : null,
+    balance: balance.status === 'fulfilled' && Array.isArray(balance.value) ? balance.value[0] : null,
+    news:    news.status    === 'fulfilled' && Array.isArray(news.value)    ? news.value       : null,
   }
+}
+
+export async function fetchFMPEarnings(ticker, apiKey) {
+  const key = apiKey || import.meta.env.VITE_FMP_KEY
+  if (!key) return null
+  const res = await fetch(`https://financialmodelingprep.com/stable/earnings?symbol=${ticker}&limit=8&apikey=${key}`)
+  const data = await res.json()
+  if (!Array.isArray(data)) return null
+  const upcoming = data.find(e => new Date(e.date) >= new Date())
+  return upcoming?.date || null
+}
+
+export async function fetchFMPAnalystTarget(ticker, apiKey) {
+  const key = apiKey || import.meta.env.VITE_FMP_KEY
+  if (!key) return null
+  const res = await fetch(`https://financialmodelingprep.com/stable/price-target-consensus?symbol=${ticker}&apikey=${key}`)
+  const data = await res.json()
+  return Array.isArray(data) ? data[0] : null
 }
 
 // Formatting helpers

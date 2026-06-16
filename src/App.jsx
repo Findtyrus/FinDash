@@ -4,6 +4,7 @@ import PriceChart from './components/PriceChart'
 import ValuationPanel from './components/ValuationPanel'
 import FinancialsPanel from './components/FinancialsPanel'
 import NewsPanel from './components/NewsPanel'
+import ScoutPanel from './components/ScoutPanel'
 import { useTickerData } from './hooks/useTickerData'
 import { fmt, fmtB, fmtVol } from './lib/api'
 
@@ -11,7 +12,7 @@ const QUICK_PICKS = ['AAPL', 'TSLA', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOG', 'BR
 
 export default function App() {
   const [inputVal, setInputVal] = useState('')
-  const { loading, error, data, ticker, load } = useTickerData()
+  const { loading, error, data, ticker, load, isLive } = useTickerData()
   const inputRef = useRef(null)
 
   const handleLoad = (sym) => {
@@ -103,6 +104,9 @@ export default function App() {
                       <span className={pos ? 'pill-pos' : 'pill-neg'}>
                         {pos ? '+' : ''}{fmt(chg)} ({pos ? '+' : ''}{fmt(pct)}%)
                       </span>
+                      {isLive && (
+                        <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Live" />
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -115,6 +119,41 @@ export default function App() {
                       ${fmt(q?.fiftyTwoWeekLow)} – ${fmt(q?.fiftyTwoWeekHigh)}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <ScoutPanel
+                ticker={ticker}
+                quote={q}
+                ratios={data.fmp?.ratios}
+                metrics={data.fmp?.ratios}
+                profile={data.fmp?.profile}
+                income={data.fmp?.income?.[0]}
+              />
+
+              <div className="card">
+                <div className="text-xs text-neutral-500 uppercase tracking-widest mb-3">Key Statistics</div>
+                <div className="grid grid-cols-2 gap-x-8">
+                  {[
+                    ['Previous close', `$${fmt(q?.chartPreviousClose)}`],
+                    ['Open',           `$${fmt(q?.regularMarketOpen)}`],
+                    ["Day's range",    `$${fmt(q?.regularMarketDayLow)} – $${fmt(q?.regularMarketDayHigh)}`],
+                    ['52W range',      `$${fmt(q?.fiftyTwoWeekLow)} – $${fmt(q?.fiftyTwoWeekHigh)}`],
+                    ['Volume',         fmtVol(q?.regularMarketVolume)],
+                    ['Avg volume',     fmtVol(q?.averageDailyVolume3Month)],
+                    ['Market cap',     data.fmp?.profile?.marketCap ? fmtB(data.fmp.profile.marketCap) : '—'],
+                    ['Beta',           fmt(data.fmp?.profile?.beta, 2)],
+                    ['EPS (TTM)',      `$${fmt(q?.epsTrailingTwelveMonths)}`],
+                    ['Forward P/E',    fmt(q?.forwardPE)],
+                    ['Dividend yield', q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : '—'],
+                    ['Earnings date',  data.earnings || '—'],
+                    ['1Y price target', `$${fmt(data.target?.targetConsensus)}`],
+                  ].map(([label, val]) => (
+                    <div key={label} className="flex items-center justify-between py-1.5 border-b border-neutral-800/60">
+                      <span className="text-xs text-neutral-500">{label}</span>
+                      <span className="text-sm font-mono text-white">{val}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
