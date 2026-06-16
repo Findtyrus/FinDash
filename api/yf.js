@@ -1,8 +1,7 @@
 export default async function handler(req, res) {
-  const { path = [], ...query } = req.query
-  const upstreamPath = Array.isArray(path) ? path.join('/') : path
+  const { path = '', ...query } = req.query
   const qs = new URLSearchParams(query).toString()
-  const url = `https://query2.finance.yahoo.com/${upstreamPath}${qs ? `?${qs}` : ''}`
+  const url = `https://query2.finance.yahoo.com/${path}${qs ? `?${qs}` : ''}`
 
   try {
     const upstream = await fetch(url, {
