@@ -140,7 +140,10 @@ export default function ScoutPanel({ ticker, quote, ratios, metrics, profile, in
   const [descExpanded, setDescExpanded] = useState(false)
   const reqRef = useRef(0)
 
-  const { score, rating, reason } = scoreTicker({ quote, ratios, metrics, profile, income })
+  const hasFmpData = ratios != null || metrics != null || income != null || profile != null
+  const { score, rating, reason } = hasFmpData
+    ? scoreTicker({ quote, ratios, metrics, profile, income })
+    : { score: null, rating: null, reason: null }
 
   useEffect(() => {
     if (!ticker || !quote) return
@@ -194,16 +197,24 @@ ${dataBlock}`,
       </div>
 
       {/* Section A — rating */}
-      <div className="flex items-center gap-4 mb-4">
-        <span className={`px-3 py-1.5 rounded-lg text-lg font-bold tracking-wide ${RATING_STYLES[rating]}`}>
-          {rating}
-        </span>
-        <div>
-          <div className="text-sm font-mono text-white">{score}/100</div>
-          <div className="text-xs text-neutral-500">composite score</div>
-        </div>
-      </div>
-      <p className="text-sm text-neutral-300 mb-4">{reason}</p>
+      {hasFmpData ? (
+        <>
+          <div className="flex items-center gap-4 mb-4">
+            <span className={`px-3 py-1.5 rounded-lg text-lg font-bold tracking-wide ${RATING_STYLES[rating]}`}>
+              {rating}
+            </span>
+            <div>
+              <div className="text-sm font-mono text-white">{score}/100</div>
+              <div className="text-xs text-neutral-500">composite score</div>
+            </div>
+          </div>
+          <p className="text-sm text-neutral-300 mb-4">{reason}</p>
+        </>
+      ) : (
+        <p className="text-sm text-neutral-500 mb-4">
+          Fundamental data unavailable for this ticker on the current data plan.
+        </p>
+      )}
 
       {/* Section B — AI brief */}
       <div className="border-l-2 border-brand-400 pl-3 mb-3">

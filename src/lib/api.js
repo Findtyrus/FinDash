@@ -17,19 +17,25 @@ export async function fetchYFHistory(ticker, range = '1y') {
   }
 }
 
+function normalizeFMPTicker(ticker) {
+  const map = { 'GOOG': 'GOOGL', 'BRK-B': 'BRK.B', 'BRK-A': 'BRK.A' }
+  return map[ticker] || ticker
+}
+
 export async function fetchFMPAll(ticker, apiKey) {
   const key = apiKey || import.meta.env.VITE_FMP_KEY
   if (!key) return null
 
   const base = 'https://financialmodelingprep.com/stable'
+  const symbol = normalizeFMPTicker(ticker)
 
   const [profile, ratios, keyMetrics, income, balance, news] = await Promise.allSettled([
-    fetch(`${base}/profile?symbol=${ticker}&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/ratios-ttm?symbol=${ticker}&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/key-metrics-ttm?symbol=${ticker}&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/income-statement?symbol=${ticker}&limit=4&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/balance-sheet-statement?symbol=${ticker}&limit=1&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/news/stock?symbols=${ticker}&limit=8&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/profile?symbol=${symbol}&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/ratios-ttm?symbol=${symbol}&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/key-metrics-ttm?symbol=${symbol}&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/income-statement?symbol=${symbol}&limit=4&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/balance-sheet-statement?symbol=${symbol}&limit=1&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/news/stock?symbols=${symbol}&limit=8&apikey=${key}`).then(r => r.json()),
   ])
 
   const ratiosVal     = ratios.status     === 'fulfilled' && Array.isArray(ratios.value)     ? ratios.value[0]     : null
