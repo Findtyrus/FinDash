@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }
+  input, button { outline: none; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+}
+
+@layer components {
+  .card {
+    @apply bg-neutral-900 border border-neutral-800 rounded-xl p-4;
+  }
+  .metric-card {
+    @apply bg-neutral-800/60 rounded-lg p-3;
+  }
+  .tab-btn {
+    @apply text-xs text-neutral-400 px-3 py-1.5 border-b-2 border-transparent 
+           hover:text-neutral-200 transition-colors cursor-pointer;
+  }
+  .tab-btn.active {
+    @apply text-white border-brand-400;
+  }
+  .fin-row {
+    @apply flex justify-between items-center py-1.5 border-b border-neutral-800 
+           text-sm last:border-0;
+  }
+  .pill-pos {
+    @apply text-xs px-2 py-0.5 rounded bg-green-500/15 text-green-500;
+  }
+  .pill-neg {
+    @apply text-xs px-2 py-0.5 rounded bg-red-500/15 text-red-500;
+  }
+  .news-item {
+    @apply py-3 border-b border-neutral-800 last:border-0 cursor-pointer 
+           hover:bg-neutral-800/40 -mx-4 px-4 transition-colors;
+  }
+  .sidebar-item {
+    @apply flex items-center justify-between px-4 py-2 text-sm cursor-pointer 
+           hover:bg-neutral-800/60 transition-colors text-neutral-300 rounded-lg mx-2;
+  }
+  .sidebar-item.active {
+    @apply bg-neutral-800 text-white;
+  }
+}
