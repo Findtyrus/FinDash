@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { fetchYFQuote, fetchYFHistory, fetchFMPAll, fetchFMPEarnings, fetchFMPAnalystTarget } from '../lib/api'
+import { fetchYFQuote, fetchYFHistory, fetchFinnhubAll } from '../lib/api'
 
 const POLL_MS = 5000
 
@@ -19,7 +19,7 @@ export function useTickerData() {
     setIsLive(false)
   }, [])
 
-  const load = useCallback(async (sym, fmpKey) => {
+  const load = useCallback(async (sym) => {
     const t = sym.trim().toUpperCase()
     if (!t) return
     stopPolling()
@@ -28,19 +28,15 @@ export function useTickerData() {
     setTicker(t)
 
     try {
-      const [quote, history, fmp, earnings, target] = await Promise.allSettled([
+      const [quote, history, finnhub] = await Promise.allSettled([
         fetchYFQuote(t),
         fetchYFHistory(t),
-        fetchFMPAll(t, fmpKey),
-        fetchFMPEarnings(t, fmpKey),
-        fetchFMPAnalystTarget(t, fmpKey),
+        fetchFinnhubAll(t),
       ])
       setData({
-        quote:    quote.status    === 'fulfilled' ? quote.value    : null,
-        history:  history.status  === 'fulfilled' ? history.value  : null,
-        fmp:      fmp.status      === 'fulfilled' ? fmp.value      : null,
-        earnings: earnings.status === 'fulfilled' ? earnings.value : null,
-        target:   target.status   === 'fulfilled' ? target.value   : null,
+        quote:   quote.status   === 'fulfilled' ? quote.value   : null,
+        history: history.status === 'fulfilled' ? history.value : null,
+        fmp:     finnhub.status === 'fulfilled' ? finnhub.value : null, // keep key as 'fmp' so App.jsx doesn't break
       })
 
       pollRef.current = setInterval(async () => {

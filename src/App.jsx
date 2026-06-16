@@ -57,7 +57,7 @@ export default function App() {
               <div className="text-4xl text-neutral-700">⬡</div>
               <div className="text-lg font-medium text-neutral-300">Enter a ticker to get started</div>
               <div className="text-sm text-neutral-500 max-w-sm">
-                Live prices via Yahoo Finance. Financials, valuation multiples, and news powered by FMP.
+                Live prices via Yahoo Finance. Financials, valuation multiples, and news powered by Finnhub.
               </div>
               <div className="flex flex-wrap justify-center gap-2 mt-2">
                 {QUICK_PICKS.map(t => (
@@ -91,12 +91,10 @@ export default function App() {
                 <div className="flex items-start justify-between flex-wrap gap-4">
                   <div>
                     <div className="text-xs text-neutral-500 mb-1">
-                      {data.fmp?.profile?.sector}
-                      {data.fmp?.profile?.sector && data.fmp?.profile?.industry ? ' · ' : ''}
-                      {data.fmp?.profile?.industry}
+                      {data.fmp?.profile?.finnhubIndustry}
                     </div>
                     <div className="text-xl font-medium text-white">
-                      {data.fmp?.profile?.companyName || ticker}{' '}
+                      {data.fmp?.profile?.name || ticker}{' '}
                       <span className="text-sm text-neutral-400 font-normal">({ticker})</span>
                     </div>
                     <div className="flex items-baseline gap-3 mt-2">
@@ -112,7 +110,7 @@ export default function App() {
                   <div className="text-right">
                     <div className="text-xs text-neutral-500">Market cap</div>
                     <div className="text-base font-medium font-mono">
-                      {data.fmp?.profile?.marketCap ? fmtB(data.fmp.profile.marketCap) : '—'}
+                      {data.fmp?.profile?.marketCapitalization ? fmtB(data.fmp.profile.marketCapitalization * 1e6) : '—'}
                     </div>
                     <div className="text-xs text-neutral-500 mt-2">52W range</div>
                     <div className="text-sm font-mono">
@@ -125,10 +123,9 @@ export default function App() {
               <ScoutPanel
                 ticker={ticker}
                 quote={q}
-                ratios={data.fmp?.ratios}
-                metrics={data.fmp?.ratios}
+                metrics={data.fmp?.metrics}
                 profile={data.fmp?.profile}
-                income={data.fmp?.income}
+                recommendation={data.fmp?.recommendation}
               />
 
               <div className="card">
@@ -136,18 +133,18 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-x-8">
                   {[
                     ['Previous close', `$${fmt(q?.chartPreviousClose)}`],
-                    ['P/E (TTM)',      fmtX(data.fmp?.ratios?.priceToEarningsRatioTTM)],
+                    ['P/E (TTM)',      fmtX(data.fmp?.metrics?.peBasicExclExtraTTM)],
                     ["Day's range",    `$${fmt(q?.regularMarketDayLow)} – $${fmt(q?.regularMarketDayHigh)}`],
                     ['52W range',      `$${fmt(q?.fiftyTwoWeekLow)} – $${fmt(q?.fiftyTwoWeekHigh)}`],
                     ['Volume',         fmtVol(q?.regularMarketVolume)],
-                    ['Avg volume',     fmtVol(data.fmp?.profile?.averageVolume)],
-                    ['Market cap',     data.fmp?.profile?.marketCap ? fmtB(data.fmp.profile.marketCap) : '—'],
-                    ['Beta',           fmt(data.fmp?.profile?.beta, 2)],
-                    ['EPS (TTM)',      `$${fmt(data.fmp?.ratios?.netIncomePerShareTTM)}`],
+                    ['Avg volume',     fmtVol(data.fmp?.metrics?.['10DayAverageTradingVolume'] != null ? data.fmp.metrics['10DayAverageTradingVolume'] * 1e6 : null)],
+                    ['Market cap',     data.fmp?.profile?.marketCapitalization ? fmtB(data.fmp.profile.marketCapitalization * 1e6) : '—'],
+                    ['Beta',           fmt(data.fmp?.metrics?.beta, 2)],
+                    ['EPS (TTM)',      `$${fmt(data.fmp?.metrics?.epsBasicExclExtraItemsTTM)}`],
                     ['Forward P/E',    fmt(q?.forwardPE)],
-                    ['Dividend yield', q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : '—'],
-                    ['Earnings date',  data.earnings || '—'],
-                    ['1Y price target', `$${fmt(data.target?.targetConsensus)}`],
+                    ['Dividend yield', data.fmp?.metrics?.dividendYieldIndicatedAnnual != null ? `${data.fmp.metrics.dividendYieldIndicatedAnnual.toFixed(2)}%` : '—'],
+                    ['Earnings date',  data.fmp?.nextEarningsDate || '—'],
+                    ['1Y price target', `$${fmt(data.fmp?.analystTarget?.targetMean)}`],
                   ].map(([label, val]) => (
                     <div key={label} className="flex items-center justify-between py-1.5 border-b border-neutral-800/60">
                       <span className="text-xs text-neutral-500">{label}</span>
@@ -166,8 +163,8 @@ export default function App() {
                 <PriceChart history={data.history} />
               </div>
 
-              <ValuationPanel ratios={data.fmp?.ratios} hasFmp={!!data.fmp} />
-              <FinancialsPanel income={data.fmp?.income} balance={data.fmp?.balance} hasFmp={!!data.fmp} />
+              <ValuationPanel metrics={data.fmp?.metrics} hasFmp={!!data.fmp} />
+              <FinancialsPanel metrics={data.fmp?.metrics} hasFmp={!!data.fmp} />
               <NewsPanel news={data.fmp?.news} hasFmp={!!data.fmp} />
             </>
           )}

@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { fmt } from '../lib/api'
 
-function scoreTicker({ quote, ratios, metrics, profile, income }) {
-  const r = { ...metrics, ...ratios }
+function scoreTicker({ quote, metrics, profile }) {
   const factors = []
 
-  const pe = r?.priceToEarningsRatioTTM
-  const roe = r?.returnOnEquityTTM != null ? r.returnOnEquityTTM * 100 : null
+  const pe = metrics?.['peBasicExclExtraTTM']
+  const roe = metrics?.['roeTTM'] != null ? metrics['roeTTM'] : null
 
   // P/E relative to ROE (quality-adjusted) — don't punish a high multiple on a high-quality compounder
   if (pe != null && roe != null) {
@@ -17,7 +16,7 @@ function scoreTicker({ quote, ratios, metrics, profile, income }) {
     factors.push({ label: 'P/E vs ROE quality', detail: `P/E ${pe.toFixed(1)}x, ROE ${roe.toFixed(1)}%`, points: pts })
   }
 
-  const margin = r?.netProfitMarginTTM != null ? r.netProfitMarginTTM * 100 : null
+  const margin = metrics?.['netProfitMarginTTM']
   if (margin != null) {
     let pts
     if (margin < 0) pts = -20
@@ -38,7 +37,7 @@ function scoreTicker({ quote, ratios, metrics, profile, income }) {
     factors.push({ label: 'ROE', detail: `${roe.toFixed(1)}%`, points: pts })
   }
 
-  const de = r?.debtToEquityRatioTTM
+  const de = metrics?.['totalDebt/totalEquityAnnual']
   if (de != null) {
     let pts
     if (de > 3) pts = -10
@@ -60,8 +59,9 @@ function scoreTicker({ quote, ratios, metrics, profile, income }) {
     factors.push({ label: '52W momentum', detail: `${position.toFixed(0)}% of range`, points: pts })
   }
 
-  if (income?.[0]?.revenue != null && income?.[1]?.revenue != null) {
-    const growing = income[0].revenue > income[1].revenue
+  const revGrowth = metrics?.['revenueGrowthTTMYoy']
+  if (revGrowth != null) {
+    const growing = revGrowth > 0
     factors.push({ label: 'revenue growth', detail: growing ? 'growing YoY' : 'flat or declining YoY', points: growing ? 10 : 0 })
   }
 
@@ -76,7 +76,7 @@ function scoreTicker({ quote, ratios, metrics, profile, income }) {
   const best = sorted[0]
   const worst = sorted[sorted.length - 1]
 
-  let reason = `Not enough data to assess ${profile?.companyName || 'this stock'} yet.`
+  let reason = `Not enough data to assess ${profile?.name || 'this stock'} yet.`
   if (best && worst) {
     reason = `The strongest signal is its ${best.label} (${best.detail}), which supports the case. ` +
       (worst.points < 0
@@ -112,9 +112,7 @@ async function callScout(messages) {
   return data.content[0].text
 }
 
-function buildDataBlock({ ticker, quote, ratios, metrics, income, profile }) {
-  const r = { ...metrics, ...ratios }
-  const incomeLatest = income?.[0]
+function buildDataBlock({ quote, metrics, profile }) {
   const chg = quote ? quote.regularMarketPrice - quote.chartPreviousClose : null
   const pct = quote?.chartPreviousClose ? (chg / quote.chartPreviousClose * 100) : null
   const low = quote?.fiftyTwoWeekLow
@@ -124,13 +122,13 @@ function buildDataBlock({ ticker, quote, ratios, metrics, income, profile }) {
     : '—'
 
   return `Price: $${fmt(quote?.regularMarketPrice)}, Change: ${pct != null ? pct.toFixed(2) : '—'}% today
-P/E: ${r?.priceToEarningsRatioTTM != null ? r.priceToEarningsRatioTTM.toFixed(1) : '—'}x, EV/EBITDA: ${r?.enterpriseValueMultipleTTM != null ? r.enterpriseValueMultipleTTM.toFixed(1) : '—'}x, Net Margin: ${r?.netProfitMarginTTM != null ? (r.netProfitMarginTTM * 100).toFixed(1) : '—'}%, ROE: ${r?.returnOnEquityTTM != null ? (r.returnOnEquityTTM * 100).toFixed(1) : '—'}%
-Revenue: ${incomeLatest?.revenue ?? '—'}, Net Income: ${incomeLatest?.netIncome ?? '—'}
+P/E: ${metrics?.['peBasicExclExtraTTM'] != null ? metrics['peBasicExclExtraTTM'].toFixed(1) : '—'}x, EV/EBITDA: ${metrics?.['evEbitdaTTM'] != null ? metrics['evEbitdaTTM'].toFixed(1) : '—'}x, Net Margin: ${metrics?.['netProfitMarginTTM'] != null ? metrics['netProfitMarginTTM'].toFixed(1) : '—'}%, ROE: ${metrics?.['roeTTM'] != null ? metrics['roeTTM'].toFixed(1) : '—'}%
+Revenue/share: $${fmt(metrics?.['revenuePerShareTTM'])}
 52W: $${fmt(low)} – $${fmt(high)}, currently at ${position}% of range
-Sector: ${profile?.sector || '—'}, Industry: ${profile?.industry || '—'}`
+Sector: ${profile?.finnhubIndustry || '—'}`
 }
 
-export default function ScoutPanel({ ticker, quote, ratios, metrics, profile, income }) {
+export default function ScoutPanel({ ticker, quote, metrics, profile, recommendation }) {
   const [brief, setBrief] = useState(null)
   const [questions, setQuestions] = useState([])
   const [briefLoading, setBriefLoading] = useState(false)
@@ -140,9 +138,9 @@ export default function ScoutPanel({ ticker, quote, ratios, metrics, profile, in
   const [descExpanded, setDescExpanded] = useState(false)
   const reqRef = useRef(0)
 
-  const hasFmpData = ratios != null || metrics != null || income != null || profile != null
+  const hasFmpData = metrics != null || profile != null
   const { score, rating, reason } = hasFmpData
-    ? scoreTicker({ quote, ratios, metrics, profile, income })
+    ? scoreTicker({ quote, metrics, profile })
     : { score: null, rating: null, reason: null }
 
   useEffect(() => {
@@ -154,7 +152,7 @@ export default function ScoutPanel({ ticker, quote, ratios, metrics, profile, in
     setBriefError(null)
     setBriefLoading(true)
 
-    const dataBlock = buildDataBlock({ ticker, quote, ratios, metrics, income, profile })
+    const dataBlock = buildDataBlock({ quote, metrics, profile })
     callScout([{
       role: 'user',
       content: `Write a 3-sentence stock brief for ${ticker}. Cover: (1) what is driving price action right now, (2) the key fundamental strength or weakness, (3) the main risk. Then on a new line, write exactly 4 follow-up questions an investor would want answered, each on its own line starting with "Q: ".
@@ -180,7 +178,7 @@ ${dataBlock}`,
       return
     }
     setAnswerLoading(question)
-    const dataBlock = buildDataBlock({ ticker, quote, ratios, metrics, income, profile })
+    const dataBlock = buildDataBlock({ quote, metrics, profile })
     callScout([{
       role: 'user',
       content: `Given this data for ${ticker}:\n${dataBlock}\n\nAnswer this investor question in 2-3 sentences: ${question}`,
@@ -189,6 +187,10 @@ ${dataBlock}`,
       .catch(e => setAnswers(prev => ({ ...prev, [question]: { text: `Couldn't get an answer: ${e.message}`, open: true } })))
       .finally(() => setAnswerLoading(null))
   }
+
+  const recTotal = recommendation
+    ? recommendation.strongBuy + recommendation.buy + recommendation.hold + recommendation.sell + recommendation.strongSell
+    : 0
 
   return (
     <div className="card border-l-2 border-brand-400">
@@ -214,6 +216,19 @@ ${dataBlock}`,
         <p className="text-sm text-neutral-500 mb-4">
           Fundamental data unavailable for this ticker on the current data plan.
         </p>
+      )}
+
+      {recTotal > 0 && (
+        <div className="mb-4">
+          <div className="text-xs text-neutral-500 mb-1.5">
+            {recTotal} analysts: {recommendation.strongBuy + recommendation.buy} buy, {recommendation.hold} hold, {recommendation.sell + recommendation.strongSell} sell
+          </div>
+          <div className="flex h-1.5 rounded-full overflow-hidden bg-neutral-800">
+            <div className="bg-green-600" style={{ width: `${(recommendation.strongBuy + recommendation.buy) / recTotal * 100}%` }} />
+            <div className="bg-amber-500" style={{ width: `${recommendation.hold / recTotal * 100}%` }} />
+            <div className="bg-red-600" style={{ width: `${(recommendation.sell + recommendation.strongSell) / recTotal * 100}%` }} />
+          </div>
+        </div>
       )}
 
       {/* Section B — AI brief */}

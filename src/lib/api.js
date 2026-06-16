@@ -17,55 +17,49 @@ export async function fetchYFHistory(ticker, range = '1y') {
   }
 }
 
-function normalizeFMPTicker(ticker) {
-  const map = { 'GOOG': 'GOOGL', 'BRK-B': 'BRK.B', 'BRK-A': 'BRK.A' }
-  return map[ticker] || ticker
+const FINNHUB_BASE = 'https://finnhub.io/api/v1'
+
+function today() { return new Date().toISOString().split('T')[0] }
+function daysAgo(n) {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d.toISOString().split('T')[0]
+}
+function daysAhead(n) {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
 }
 
-export async function fetchFMPAll(ticker, apiKey) {
-  const key = apiKey || import.meta.env.VITE_FMP_KEY
+export async function fetchFinnhubAll(ticker) {
+  const key = import.meta.env.VITE_FINNHUB_KEY
   if (!key) return null
 
-  const base = 'https://financialmodelingprep.com/stable'
-  const symbol = normalizeFMPTicker(ticker)
-
-  const [profile, ratios, keyMetrics, income, balance, news] = await Promise.allSettled([
-    fetch(`${base}/profile?symbol=${symbol}&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/ratios-ttm?symbol=${symbol}&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/key-metrics-ttm?symbol=${symbol}&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/income-statement?symbol=${symbol}&limit=4&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/balance-sheet-statement?symbol=${symbol}&limit=1&apikey=${key}`).then(r => r.json()),
-    fetch(`${base}/news/stock?symbols=${symbol}&limit=8&apikey=${key}`).then(r => r.json()),
+  const [profile, metrics, financials, news, analystTarget, recommendation, earnings, earningsCalendar] = await Promise.allSettled([
+    fetch(`${FINNHUB_BASE}/stock/profile2?symbol=${ticker}&token=${key}`).then(r => r.json()),
+    fetch(`${FINNHUB_BASE}/stock/metric?symbol=${ticker}&metric=all&token=${key}`).then(r => r.json()),
+    fetch(`${FINNHUB_BASE}/stock/financials-reported?symbol=${ticker}&freq=annual&token=${key}`).then(r => r.json()),
+    fetch(`${FINNHUB_BASE}/company-news?symbol=${ticker}&from=${daysAgo(7)}&to=${today()}&token=${key}`).then(r => r.json()),
+    fetch(`${FINNHUB_BASE}/stock/price-target?symbol=${ticker}&token=${key}`).then(r => r.json()),
+    fetch(`${FINNHUB_BASE}/stock/recommendation?symbol=${ticker}&token=${key}`).then(r => r.json()),
+    fetch(`${FINNHUB_BASE}/stock/earnings?symbol=${ticker}&token=${key}`).then(r => r.json()),
+    fetch(`${FINNHUB_BASE}/calendar/earnings?symbol=${ticker}&from=${today()}&to=${daysAhead(180)}&token=${key}`).then(r => r.json()),
   ])
 
-  const ratiosVal     = ratios.status     === 'fulfilled' && Array.isArray(ratios.value)     ? ratios.value[0]     : null
-  const keyMetricsVal = keyMetrics.status === 'fulfilled' && Array.isArray(keyMetrics.value) ? keyMetrics.value[0] : null
+  const upcomingEarnings = earningsCalendar.status === 'fulfilled' && Array.isArray(earningsCalendar.value?.earningsCalendar)
+    ? earningsCalendar.value.earningsCalendar[0]?.date || null
+    : null
 
   return {
-    profile: profile.status === 'fulfilled' && Array.isArray(profile.value) ? profile.value[0] : null,
-    ratios:  ratiosVal || keyMetricsVal ? { ...ratiosVal, ...keyMetricsVal } : null,
-    income:  income.status  === 'fulfilled' && Array.isArray(income.value)  ? income.value     : null,
-    balance: balance.status === 'fulfilled' && Array.isArray(balance.value) ? balance.value[0] : null,
-    news:    news.status    === 'fulfilled' && Array.isArray(news.value)    ? news.value       : null,
+    profile:          profile.status        === 'fulfilled' && profile.value?.name        ? profile.value          : null,
+    metrics:          metrics.status        === 'fulfilled' && metrics.value?.metric       ? metrics.value.metric   : null,
+    financials:       financials.status     === 'fulfilled' && Array.isArray(financials.value?.data) ? financials.value.data : null,
+    news:             news.status           === 'fulfilled' && Array.isArray(news.value)   ? news.value             : null,
+    analystTarget:    analystTarget.status  === 'fulfilled' && analystTarget.value?.targetMean ? analystTarget.value : null,
+    recommendation:   recommendation.status === 'fulfilled' && Array.isArray(recommendation.value) ? recommendation.value[0] : null,
+    earnings:         earnings.status       === 'fulfilled' && Array.isArray(earnings.value) ? earnings.value       : null,
+    nextEarningsDate: upcomingEarnings,
   }
-}
-
-export async function fetchFMPEarnings(ticker, apiKey) {
-  const key = apiKey || import.meta.env.VITE_FMP_KEY
-  if (!key) return null
-  const res = await fetch(`https://financialmodelingprep.com/stable/earnings?symbol=${ticker}&limit=8&apikey=${key}`)
-  const data = await res.json()
-  if (!Array.isArray(data)) return null
-  const upcoming = data.find(e => new Date(e.date) >= new Date())
-  return upcoming?.date || null
-}
-
-export async function fetchFMPAnalystTarget(ticker, apiKey) {
-  const key = apiKey || import.meta.env.VITE_FMP_KEY
-  if (!key) return null
-  const res = await fetch(`https://financialmodelingprep.com/stable/price-target-consensus?symbol=${ticker}&apikey=${key}`)
-  const data = await res.json()
-  return Array.isArray(data) ? data[0] : null
 }
 
 // Formatting helpers

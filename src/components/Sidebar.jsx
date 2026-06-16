@@ -117,7 +117,7 @@ export default function Sidebar({ activeTicker, onSelect }) {
 
       <div className="px-3 py-3 border-t border-neutral-800">
         <div className="text-xs text-neutral-600 leading-relaxed">
-          Data: <span className="text-green-700">Yahoo Finance</span> · <span className="text-brand-600">FMP</span>
+          Data: <span className="text-green-700">Yahoo Finance</span> · <span className="text-brand-600">Finnhub</span>
         </div>
       </div>
     </aside>
