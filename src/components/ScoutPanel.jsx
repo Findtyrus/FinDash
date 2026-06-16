@@ -1,37 +1,39 @@
 import { useState, useEffect, useRef } from 'react'
 import { fmt } from '../lib/api'
 
-function scoreTicker({ quote, ratios, metrics, profile }) {
+function scoreTicker({ quote, ratios, metrics, profile, income }) {
   const r = { ...metrics, ...ratios }
   const factors = []
 
   const pe = r?.priceToEarningsRatioTTM
-  if (pe != null) {
-    let pts
-    if (pe > 60) pts = -10
-    else if (pe > 40) pts = 0
-    else if (pe >= 25) pts = 5
-    else if (pe >= 15) pts = 10
-    else pts = 20
-    factors.push({ label: 'P/E', detail: `${pe.toFixed(1)}x`, points: pts })
+  const roe = r?.returnOnEquityTTM != null ? r.returnOnEquityTTM * 100 : null
+
+  // P/E relative to ROE (quality-adjusted) — don't punish a high multiple on a high-quality compounder
+  if (pe != null && roe != null) {
+    let pts = 0
+    if (roe > 20 && pe < 60) pts = 15
+    else if (roe > 15 && pe < 40) pts = 10
+    else if (pe > 60 && roe < 10) pts = -15
+    factors.push({ label: 'P/E vs ROE quality', detail: `P/E ${pe.toFixed(1)}x, ROE ${roe.toFixed(1)}%`, points: pts })
   }
 
   const margin = r?.netProfitMarginTTM != null ? r.netProfitMarginTTM * 100 : null
   if (margin != null) {
     let pts
-    if (margin < 0) pts = -15
-    else if (margin < 10) pts = 5
-    else if (margin < 20) pts = 12
+    if (margin < 0) pts = -20
+    else if (margin < 2) pts = 0
+    else if (margin < 5) pts = 5
+    else if (margin < 15) pts = 10
     else pts = 20
     factors.push({ label: 'net margin', detail: `${margin.toFixed(1)}%`, points: pts })
   }
 
-  const roe = r?.returnOnEquityTTM != null ? r.returnOnEquityTTM * 100 : null
   if (roe != null) {
     let pts
-    if (roe > 20) pts = 15
-    else if (roe >= 10) pts = 8
-    else if (roe < 5) pts = -10
+    if (roe > 25) pts = 20
+    else if (roe >= 15) pts = 15
+    else if (roe >= 8) pts = 8
+    else if (roe < 5) pts = -15
     else pts = 0
     factors.push({ label: 'ROE', detail: `${roe.toFixed(1)}%`, points: pts })
   }
@@ -39,10 +41,10 @@ function scoreTicker({ quote, ratios, metrics, profile }) {
   const de = r?.debtToEquityRatioTTM
   if (de != null) {
     let pts
-    if (de > 2) pts = -10
-    else if (de >= 1) pts = 0
-    else if (de >= 0.3) pts = 5
-    else pts = 10
+    if (de > 3) pts = -10
+    else if (de > 1.5) pts = 0
+    else if (de >= 0.5) pts = 8
+    else pts = 15
     factors.push({ label: 'debt/equity', detail: `${de.toFixed(2)}x`, points: pts })
   }
 
@@ -52,19 +54,23 @@ function scoreTicker({ quote, ratios, metrics, profile }) {
   if (low != null && high != null && price != null && high > low) {
     const position = ((price - low) / (high - low)) * 100
     let pts
-    if (position <= 25) pts = 15
-    else if (position <= 50) pts = 8
-    else if (position >= 75) pts = -5
-    else pts = 0
-    factors.push({ label: '52W position', detail: `${position.toFixed(0)}% of range`, points: pts })
+    if (position <= 30) pts = 10
+    else if (position >= 90) pts = -5
+    else pts = 5
+    factors.push({ label: '52W momentum', detail: `${position.toFixed(0)}% of range`, points: pts })
+  }
+
+  if (income?.[0]?.revenue != null && income?.[1]?.revenue != null) {
+    const growing = income[0].revenue > income[1].revenue
+    factors.push({ label: 'revenue growth', detail: growing ? 'growing YoY' : 'flat or declining YoY', points: growing ? 10 : 0 })
   }
 
   const raw = factors.reduce((sum, f) => sum + f.points, 0)
   const score = Math.max(0, Math.min(100, raw))
 
   let rating = 'SELL'
-  if (score >= 65) rating = 'BUY'
-  else if (score >= 40) rating = 'HOLD'
+  if (score >= 60) rating = 'BUY'
+  else if (score >= 38) rating = 'HOLD'
 
   const sorted = [...factors].sort((a, b) => b.points - a.points)
   const best = sorted[0]
@@ -108,6 +114,7 @@ async function callScout(messages) {
 
 function buildDataBlock({ ticker, quote, ratios, metrics, income, profile }) {
   const r = { ...metrics, ...ratios }
+  const incomeLatest = income?.[0]
   const chg = quote ? quote.regularMarketPrice - quote.chartPreviousClose : null
   const pct = quote?.chartPreviousClose ? (chg / quote.chartPreviousClose * 100) : null
   const low = quote?.fiftyTwoWeekLow
@@ -118,7 +125,7 @@ function buildDataBlock({ ticker, quote, ratios, metrics, income, profile }) {
 
   return `Price: $${fmt(quote?.regularMarketPrice)}, Change: ${pct != null ? pct.toFixed(2) : '—'}% today
 P/E: ${r?.priceToEarningsRatioTTM != null ? r.priceToEarningsRatioTTM.toFixed(1) : '—'}x, EV/EBITDA: ${r?.enterpriseValueMultipleTTM != null ? r.enterpriseValueMultipleTTM.toFixed(1) : '—'}x, Net Margin: ${r?.netProfitMarginTTM != null ? (r.netProfitMarginTTM * 100).toFixed(1) : '—'}%, ROE: ${r?.returnOnEquityTTM != null ? (r.returnOnEquityTTM * 100).toFixed(1) : '—'}%
-Revenue: ${income?.revenue ?? '—'}, Net Income: ${income?.netIncome ?? '—'}
+Revenue: ${incomeLatest?.revenue ?? '—'}, Net Income: ${incomeLatest?.netIncome ?? '—'}
 52W: $${fmt(low)} – $${fmt(high)}, currently at ${position}% of range
 Sector: ${profile?.sector || '—'}, Industry: ${profile?.industry || '—'}`
 }
@@ -133,7 +140,7 @@ export default function ScoutPanel({ ticker, quote, ratios, metrics, profile, in
   const [descExpanded, setDescExpanded] = useState(false)
   const reqRef = useRef(0)
 
-  const { score, rating, reason } = scoreTicker({ quote, ratios, metrics, profile })
+  const { score, rating, reason } = scoreTicker({ quote, ratios, metrics, profile, income })
 
   useEffect(() => {
     if (!ticker || !quote) return

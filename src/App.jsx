@@ -6,7 +6,7 @@ import FinancialsPanel from './components/FinancialsPanel'
 import NewsPanel from './components/NewsPanel'
 import ScoutPanel from './components/ScoutPanel'
 import { useTickerData } from './hooks/useTickerData'
-import { fmt, fmtB, fmtVol } from './lib/api'
+import { fmt, fmtB, fmtX, fmtVol } from './lib/api'
 
 const QUICK_PICKS = ['AAPL', 'TSLA', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOG', 'BRK-B']
 
@@ -128,7 +128,7 @@ export default function App() {
                 ratios={data.fmp?.ratios}
                 metrics={data.fmp?.ratios}
                 profile={data.fmp?.profile}
-                income={data.fmp?.income?.[0]}
+                income={data.fmp?.income}
               />
 
               <div className="card">
@@ -136,14 +136,14 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-x-8">
                   {[
                     ['Previous close', `$${fmt(q?.chartPreviousClose)}`],
-                    ['Open',           `$${fmt(q?.regularMarketOpen)}`],
+                    ['P/E (TTM)',      fmtX(data.fmp?.ratios?.priceToEarningsRatioTTM)],
                     ["Day's range",    `$${fmt(q?.regularMarketDayLow)} – $${fmt(q?.regularMarketDayHigh)}`],
                     ['52W range',      `$${fmt(q?.fiftyTwoWeekLow)} – $${fmt(q?.fiftyTwoWeekHigh)}`],
                     ['Volume',         fmtVol(q?.regularMarketVolume)],
-                    ['Avg volume',     fmtVol(q?.averageDailyVolume3Month)],
+                    ['Avg volume',     fmtVol(data.fmp?.profile?.averageVolume)],
                     ['Market cap',     data.fmp?.profile?.marketCap ? fmtB(data.fmp.profile.marketCap) : '—'],
                     ['Beta',           fmt(data.fmp?.profile?.beta, 2)],
-                    ['EPS (TTM)',      `$${fmt(q?.epsTrailingTwelveMonths)}`],
+                    ['EPS (TTM)',      `$${fmt(data.fmp?.ratios?.netIncomePerShareTTM)}`],
                     ['Forward P/E',    fmt(q?.forwardPE)],
                     ['Dividend yield', q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : '—'],
                     ['Earnings date',  data.earnings || '—'],
@@ -155,20 +155,6 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  ['Open',     `$${fmt(q?.regularMarketOpen)}`],
-                  ['Volume',   fmtVol(q?.regularMarketVolume)],
-                  ['Avg vol',  fmtVol(q?.averageDailyVolume3Month)],
-                  ['Exchange', q?.exchangeName || '—'],
-                ].map(([label, val]) => (
-                  <div key={label} className="metric-card">
-                    <div className="text-xs text-neutral-500 mb-1">{label}</div>
-                    <div className="text-sm font-medium font-mono text-white">{val}</div>
-                  </div>
-                ))}
               </div>
 
               <div className="card">
