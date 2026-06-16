@@ -1,18 +1,13 @@
 // Yahoo Finance via public CORS-friendly endpoint
 export async function fetchYFQuote(ticker) {
-  const res = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d&corsDomain=finance.yahoo.com`
-  )
+  const res = await fetch(`/yf/v8/finance/chart/${ticker}?interval=1d&range=1d`)
   if (!res.ok) throw new Error('YF quote failed')
   const data = await res.json()
-  const meta = data.chart.result[0].meta
-  return meta
+  return data.chart.result[0].meta
 }
 
 export async function fetchYFHistory(ticker, range = '1y') {
-  const res = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${range}&corsDomain=finance.yahoo.com`
-  )
+  const res = await fetch(`/yf/v8/finance/chart/${ticker}?interval=1d&range=${range}`)
   if (!res.ok) throw new Error('YF history failed')
   const data = await res.json()
   const result = data.chart.result[0]
@@ -22,26 +17,30 @@ export async function fetchYFHistory(ticker, range = '1y') {
   }
 }
 
-// FMP (Financial Modeling Prep) — free tier key required
-// Get yours free at https://financialmodelingprep.com/developer/docs/
 export async function fetchFMPAll(ticker, apiKey) {
-  if (!apiKey) return null
-  const base = `https://financialmodelingprep.com/api/v3`
+  const key = apiKey || import.meta.env.VITE_FMP_KEY
+  if (!key) return null
 
-  const [profile, ratios, income, balance, news] = await Promise.allSettled([
-    fetch(`${base}/profile/${ticker}?apikey=${apiKey}`).then(r => r.json()),
-    fetch(`${base}/ratios-ttm/${ticker}?apikey=${apiKey}`).then(r => r.json()),
-    fetch(`${base}/income-statement/${ticker}?limit=4&apikey=${apiKey}`).then(r => r.json()),
-    fetch(`${base}/balance-sheet-statement/${ticker}?limit=1&apikey=${apiKey}`).then(r => r.json()),
-    fetch(`${base}/stock_news?tickers=${ticker}&limit=8&apikey=${apiKey}`).then(r => r.json()),
+  const base = 'https://financialmodelingprep.com/stable'
+
+  const [profile, ratios, keyMetrics, income, balance, news] = await Promise.allSettled([
+    fetch(`${base}/profile?symbol=${ticker}&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/ratios-ttm?symbol=${ticker}&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/key-metrics-ttm?symbol=${ticker}&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/income-statement?symbol=${ticker}&limit=4&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/balance-sheet-statement?symbol=${ticker}&limit=1&apikey=${key}`).then(r => r.json()),
+    fetch(`${base}/news/stock?symbols=${ticker}&limit=8&apikey=${key}`).then(r => r.json()),
   ])
+
+  const ratiosVal     = ratios.status     === 'fulfilled' ? ratios.value[0]     : null
+  const keyMetricsVal = keyMetrics.status === 'fulfilled' ? keyMetrics.value[0] : null
 
   return {
     profile: profile.status === 'fulfilled' ? profile.value[0] : null,
-    ratios:  ratios.status  === 'fulfilled' ? ratios.value[0]  : null,
+    ratios:  ratiosVal || keyMetricsVal ? { ...ratiosVal, ...keyMetricsVal } : null,
     income:  income.status  === 'fulfilled' ? income.value     : null,
     balance: balance.status === 'fulfilled' ? balance.value[0] : null,
-    news:    news.status    === 'fulfilled' ? news.value       : null,
+    news:    Array.isArray(news.value)      ? news.value       : null,
   }
 }
 

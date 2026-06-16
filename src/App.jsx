@@ -11,14 +11,12 @@ const QUICK_PICKS = ['AAPL', 'TSLA', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOG', 'BR
 
 export default function App() {
   const [inputVal, setInputVal] = useState('')
-  const [fmpKey, setFmpKey]     = useState(localStorage.getItem('fmp_key') || '')
   const { loading, error, data, ticker, load } = useTickerData()
   const inputRef = useRef(null)
 
   const handleLoad = (sym) => {
     const t = sym || inputVal
-    localStorage.setItem('fmp_key', fmpKey)
-    load(t, fmpKey)
+    load(t)
     if (sym) setInputVal(sym)
   }
 
@@ -32,7 +30,6 @@ export default function App() {
       <Sidebar activeTicker={ticker} onSelect={handleLoad} />
 
       <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Top bar */}
         <header className="flex items-center gap-3 px-4 py-2.5 border-b border-neutral-800 bg-neutral-950 flex-shrink-0">
           <div className="relative flex-1 max-w-xs">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">⌕</span>
@@ -51,28 +48,15 @@ export default function App() {
           >
             Load
           </button>
-          <div className="w-px h-5 bg-neutral-800" />
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-neutral-500">FMP key</span>
-            <input
-              value={fmpKey}
-              onChange={e => setFmpKey(e.target.value)}
-              type="password"
-              placeholder="Free at fmp.com"
-              className="w-40 bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-neutral-500 focus:border-brand-400 transition-colors"
-            />
-          </div>
         </header>
 
-        {/* Main scroll area */}
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Empty state */}
           {!ticker && !loading && (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
               <div className="text-4xl text-neutral-700">⬡</div>
               <div className="text-lg font-medium text-neutral-300">Enter a ticker to get started</div>
               <div className="text-sm text-neutral-500 max-w-sm">
-                Live prices via Yahoo Finance. Add a free FMP key for financials, valuation multiples, and news.
+                Live prices via Yahoo Finance. Financials, valuation multiples, and news powered by FMP.
               </div>
               <div className="flex flex-wrap justify-center gap-2 mt-2">
                 {QUICK_PICKS.map(t => (
@@ -88,24 +72,20 @@ export default function App() {
             </div>
           )}
 
-          {/* Loading */}
           {loading && (
             <div className="flex items-center justify-center h-full">
               <div className="text-neutral-400 text-sm animate-pulse">Loading {ticker}...</div>
             </div>
           )}
 
-          {/* Error */}
           {error && !loading && (
             <div className="card border-red-900 bg-red-950/30">
               <p className="text-sm text-red-400">{error}</p>
             </div>
           )}
 
-          {/* Dashboard */}
           {data && !loading && (
             <>
-              {/* Quote header */}
               <div className="card">
                 <div className="flex items-start justify-between flex-wrap gap-4">
                   <div>
@@ -128,7 +108,7 @@ export default function App() {
                   <div className="text-right">
                     <div className="text-xs text-neutral-500">Market cap</div>
                     <div className="text-base font-medium font-mono">
-                      {data.fmp?.profile?.mktCap ? fmtB(data.fmp.profile.mktCap) : '—'}
+                      {data.fmp?.profile?.marketCap ? fmtB(data.fmp.profile.marketCap) : '—'}
                     </div>
                     <div className="text-xs text-neutral-500 mt-2">52W range</div>
                     <div className="text-sm font-mono">
@@ -138,12 +118,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Quick metrics */}
               <div className="grid grid-cols-4 gap-3">
                 {[
-                  ['Open',    `$${fmt(q?.regularMarketOpen)}`],
-                  ['Volume',  fmtVol(q?.regularMarketVolume)],
-                  ['Avg vol', fmtVol(q?.averageDailyVolume3Month)],
+                  ['Open',     `$${fmt(q?.regularMarketOpen)}`],
+                  ['Volume',   fmtVol(q?.regularMarketVolume)],
+                  ['Avg vol',  fmtVol(q?.averageDailyVolume3Month)],
                   ['Exchange', q?.exchangeName || '—'],
                 ].map(([label, val]) => (
                   <div key={label} className="metric-card">
@@ -153,7 +132,6 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Price chart */}
               <div className="card">
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-xs text-neutral-500 uppercase tracking-widest">

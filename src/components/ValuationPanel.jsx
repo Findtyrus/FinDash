@@ -1,12 +1,12 @@
 import { fmtX, fmtPct } from '../lib/api'
 
 const MULTIPLES = [
-  ['P/E (TTM)',   r => fmtX(r?.peRatioTTM),               'Price / Earnings'],
+  ['P/E (TTM)',   r => fmtX(r?.priceToEarningsRatioTTM),   'Price / Earnings'],
   ['EV/EBITDA',  r => fmtX(r?.enterpriseValueMultipleTTM), 'Enterprise value'],
   ['P/S (TTM)',   r => fmtX(r?.priceToSalesRatioTTM),      'Price / Sales'],
   ['P/B (TTM)',   r => fmtX(r?.priceToBookRatioTTM),       'Price / Book'],
   ['EV/Revenue', r => fmtX(r?.evToSalesTTM),              'EV / Revenue'],
-  ['D/E Ratio',  r => fmtX(r?.debtEquityRatioTTM),        'Debt / Equity'],
+  ['D/E Ratio',  r => fmtX(r?.debtToEquityRatioTTM),      'Debt / Equity'],
   ['ROE (TTM)',   r => fmtPct(r?.returnOnEquityTTM),       'Return on equity'],
   ['Net Margin', r => fmtPct(r?.netProfitMarginTTM),      'Net profit margin'],
 ]

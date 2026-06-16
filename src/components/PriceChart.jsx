@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
-import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from 'chart.js'
+import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from 'chart.js'
 
-Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip)
+Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip)
 
 export default function PriceChart({ history }) {
   const ref = useRef(null)

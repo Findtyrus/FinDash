@@ -19,11 +19,11 @@ export default function FinancialsPanel({ income, balance, hasFmp }) {
   const incomeRows = [
     ['Revenue',          fmtB(inc?.revenue)],
     ['Gross profit',     fmtB(inc?.grossProfit)],
-    ['Gross margin',     fmtPct(inc?.grossProfitRatio)],
+    ['Gross margin',     fmtPct(inc ? inc.grossProfit / inc.revenue : null)],
     ['EBITDA',           fmtB(inc?.ebitda)],
     ['Operating income', fmtB(inc?.operatingIncome)],
     ['Net income',       fmtB(inc?.netIncome)],
-    ['EPS (diluted)',    inc?.epsdiluted ? `$${fmt(inc.epsdiluted)}` : '—'],
+    ['EPS (diluted)',    inc?.epsDiluted ? `$${fmt(inc.epsDiluted)}` : '—'],
   ]
 
   const balanceRows = [
