@@ -56,6 +56,7 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
   const [answerLoading, setAnswerLoading] = useState(null)
   const [descExpanded, setDescExpanded] = useState(false)
   const reqRef = useRef(0)
+  const initialQuoteRef = useRef(null)
 
   const hasFmpData = quote && (metrics != null || profile != null)
   const recTotal = recommendation
@@ -66,6 +67,10 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
   useEffect(() => {
     if (!ticker || !hasFmpData) return
 
+    if (!initialQuoteRef.current || initialQuoteRef.current.symbol !== ticker) {
+      initialQuoteRef.current = quote
+    }
+
     const myReq = ++reqRef.current
     setAnalysis(null)
     setQuestions([])
@@ -73,7 +78,7 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
     setBriefError(null)
     setBriefLoading(true)
 
-    const dataBlock = buildDataBlock({ ticker, quote, metrics, profile, recommendation })
+    const dataBlock = buildDataBlock({ ticker, quote: initialQuoteRef.current, metrics, profile, recommendation })
 
     callScout({ type: 'analysis', ticker, dataBlock })
       .then(text => {
@@ -90,7 +95,7 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
       .finally(() => {
         if (reqRef.current === myReq) setBriefLoading(false)
       })
-  }, [ticker, quote, metrics, profile, recommendation, hasFmpData])
+  }, [ticker, metrics, profile, recommendation])
 
   const askFollowUp = (question) => {
     if (answers[question]) {
