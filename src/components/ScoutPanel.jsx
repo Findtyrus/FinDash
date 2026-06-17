@@ -80,19 +80,11 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
         if (reqRef.current !== myReq) return
         const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
         setAnalysis(parsed)
-      })
-      .then(() => {
-        if (reqRef.current !== myReq) return
-        return callScout({ type: 'questions', ticker })
-      })
-      .then(text => {
-        if (reqRef.current !== myReq || !text) return
-        const qLines = text.split('\n').filter(l => l.trim().startsWith('Q:'))
-        setQuestions(qLines.map(l => l.replace(/^Q:\s*/, '').trim()))
+        setQuestions(parsed.questions || [])
       })
       .catch(e => {
         if (reqRef.current === myReq) {
-          setBriefError(e.message || 'Analysis unavailable. Check ANTHROPIC_API_KEY configuration.')
+          setBriefError(e.message || 'Analysis unavailable.')
         }
       })
       .finally(() => {

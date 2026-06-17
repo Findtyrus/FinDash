@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/scout.js": { "maxDuration": 30 }
+  },
   "rewrites": [
     { "source": "/yf/:path*", "destination": "/api/yf?path=:path*" }
   ]

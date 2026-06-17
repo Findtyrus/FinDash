@@ -4,7 +4,7 @@ function buildAnalysisMessages(ticker, dataBlock) {
   return [
     {
       role: 'user',
-      content: `Analyze ${ticker} and return this exact JSON structure:\n{\n  "rating": "BUY" | "HOLD" | "SELL",\n  "confidence": "High" | "Medium" | "Low",\n  "oneLiner": "One punchy sentence summarizing the core thesis (max 15 words)",\n  "bullCase": "2-3 sentences on why this is a great business to own. Be specific to this company — mention their actual moat, product, market position, or tailwind. Reference AI, quantum, specific competitive advantages if relevant.",\n  "bearCase": "2-3 sentences on the real risks. Be specific — mention actual threats, valuation concerns, competition, regulatory risks, macro sensitivity.",\n  "verdict": "2-3 sentences on the bottom line. Should tell the investor what to actually do and over what time horizon. Include a specific reason why now is or isn't a good entry point."\n}\n\nReturn only valid JSON with no markdown or extra commentary.\n\nData:\n${dataBlock}`,
+      content: `Analyze ${ticker} and return this exact JSON structure:\n{\n  "rating": "BUY" | "HOLD" | "SELL",\n  "confidence": "High" | "Medium" | "Low",\n  "oneLiner": "One punchy sentence summarizing the core thesis (max 15 words)",\n  "bullCase": "2-3 sentences on why this is a great business to own. Be specific to this company — mention their actual moat, product, market position, or tailwind. Reference AI, quantum, specific competitive advantages if relevant.",\n  "bearCase": "2-3 sentences on the real risks. Be specific — mention actual threats, valuation concerns, competition, regulatory risks, macro sensitivity.",\n  "verdict": "2-3 sentences on the bottom line. Should tell the investor what to actually do and over what time horizon. Include a specific reason why now is or isn't a good entry point.",\n  "questions": ["exactly 4 follow-up questions an investor would want answered, specific to this company"]\n}\n\nReturn only valid JSON with no markdown or extra commentary.\n\nData:\n${dataBlock}`,
     },
   ]
 }
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
 
   let body = {
     model: 'claude-sonnet-4-6',
-    max_tokens: 1000,
+    max_tokens: 1200,
     temperature: 0.2,
     system: SYSTEM_PROMPT,
     messages: [],
