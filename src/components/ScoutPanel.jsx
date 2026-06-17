@@ -49,9 +49,10 @@ function buildDataBlock({ ticker, quote, metrics, profile, recommendation }) {
   return `Stock data:\nTicker: ${ticker}\nCompany: ${profile?.name || '—'}\nSector: ${profile?.finnhubIndustry || '—'}\nPrice: $${fmt(quote?.regularMarketPrice)} (${changeSign}${pct != null ? pct.toFixed(2) : '—'}% today)\n52W range: $${fmt(low)} – $${fmt(high)}, currently at ${position != null ? position.toFixed(0) : '—'}% of range\nMarket cap: ${marketCap}\nP/E (TTM): ${fmtX(metrics?.['peBasicExclExtraTTM'])}\nEV/EBITDA: ${fmtX(metrics?.['evEbitdaTTM'])}\nNet margin: ${metrics?.['netProfitMarginTTM'] != null ? metrics['netProfitMarginTTM'].toFixed(1) : '—'}%\nROE: ${metrics?.['roeTTM'] != null ? metrics['roeTTM'].toFixed(1) : '—'}%\nEPS (TTM): $${fmt(metrics?.['epsTTM'])}\nBeta: ${fmt(metrics?.['beta'], 2)}\nAnalyst consensus: ${analystRec} (${strongBuy} strong buy, ${buy} buy, ${hold} hold, ${sell} sell, ${strongSell} strong sell)\nDividend yield: ${metrics?.['dividendYieldIndicatedAnnual'] != null ? metrics['dividendYieldIndicatedAnnual'].toFixed(2) : '—'}%`
 }
 
-export default function ScoutPanel({ ticker, quote, metrics, profile, recommendation }) {
+export default function ScoutPanel({ ticker, quote, metrics, profile, recommendation, onBenchmarks }) {
   const [analysis, setAnalysis] = useState(null)
   const [questions, setQuestions] = useState([])
+  const [benchmarks, setBenchmarks] = useState(null)
   const [briefLoading, setBriefLoading] = useState(false)
   const [briefError, setBriefError] = useState(null)
   const [answers, setAnswers] = useState({})
@@ -69,9 +70,13 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
   useEffect(() => {
     if (!ticker || !hasFmpData) return
 
+    setBenchmarks(null)
+
     if (analysisCache[ticker]) {
       setAnalysis(analysisCache[ticker].analysis)
       setQuestions(analysisCache[ticker].questions)
+      setBenchmarks(analysisCache[ticker].benchmarks)
+      onBenchmarks?.(analysisCache[ticker].benchmarks)
       setBriefLoading(false)
       return
     }
@@ -93,9 +98,12 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
       .then(text => {
         if (reqRef.current !== myReq) return
         const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
-        analysisCache[ticker] = { analysis: parsed, questions: parsed.questions || [] }
+        const bm = parsed.benchmarks || null
+        analysisCache[ticker] = { analysis: parsed, questions: parsed.questions || [], benchmarks: bm }
         setAnalysis(parsed)
         setQuestions(parsed.questions || [])
+        setBenchmarks(bm)
+        onBenchmarks?.(bm)
       })
       .catch(e => {
         if (reqRef.current === myReq) {

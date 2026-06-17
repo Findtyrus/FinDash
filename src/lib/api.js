@@ -62,6 +62,55 @@ export async function fetchFinnhubAll(ticker) {
   }
 }
 
+export async function fetchFinnhubPeers(ticker) {
+  const key = import.meta.env.VITE_FINNHUB_KEY
+  if (!key) return null
+  const res = await fetch(`${FINNHUB_BASE}/stock/peers?symbol=${ticker}&token=${key}`)
+  const data = await res.json()
+  return Array.isArray(data) ? data.slice(0, 5).filter(p => p !== ticker) : null
+}
+
+export async function fetchFinnhubPeerMetrics(ticker) {
+  const key = import.meta.env.VITE_FINNHUB_KEY
+  if (!key) return null
+  const [profile, metrics] = await Promise.allSettled([
+    fetch(`${FINNHUB_BASE}/stock/profile2?symbol=${ticker}&token=${key}`).then(r => r.json()),
+    fetch(`${FINNHUB_BASE}/stock/metric?symbol=${ticker}&metric=all&token=${key}`).then(r => r.json()),
+  ])
+  return {
+    ticker,
+    name: profile.status === 'fulfilled' ? profile.value?.name : ticker,
+    pe:        metrics.status === 'fulfilled' ? metrics.value?.metric?.['peBasicExclExtraTTM'] : null,
+    evEbitda:  metrics.status === 'fulfilled' ? metrics.value?.metric?.['evEbitdaTTM']         : null,
+    netMargin: metrics.status === 'fulfilled' ? metrics.value?.metric?.['netProfitMarginTTM']  : null,
+    roe:       metrics.status === 'fulfilled' ? metrics.value?.metric?.['roeTTM']              : null,
+    ps:        metrics.status === 'fulfilled' ? metrics.value?.metric?.['psTTM']               : null,
+  }
+}
+
+export async function fetchFinnhubEarningsHistory(ticker) {
+  const key = import.meta.env.VITE_FINNHUB_KEY
+  if (!key) return null
+  const res = await fetch(`${FINNHUB_BASE}/stock/earnings?symbol=${ticker}&limit=6&token=${key}`)
+  const data = await res.json()
+  return Array.isArray(data) ? data : null
+}
+
+export async function fetchCongressTrades(ticker) {
+  const fmpKey = import.meta.env.VITE_FMP_KEY
+  if (!fmpKey) return null
+  const [senate, house] = await Promise.allSettled([
+    fetch(`https://financialmodelingprep.com/stable/senate-trades?symbol=${ticker}&apikey=${fmpKey}`).then(r => r.json()),
+    fetch(`https://financialmodelingprep.com/stable/house-trades?symbol=${ticker}&apikey=${fmpKey}`).then(r => r.json()),
+  ])
+  const senateData = senate.status === 'fulfilled' && Array.isArray(senate.value) ? senate.value : []
+  const houseData  = house.status  === 'fulfilled' && Array.isArray(house.value)  ? house.value  : []
+  const combined = [...senateData, ...houseData]
+    .sort((a, b) => new Date(b.transactionDate) - new Date(a.transactionDate))
+    .slice(0, 10)
+  return combined.length > 0 ? combined : null
+}
+
 // Formatting helpers
 export const fmt    = (n, dec = 2) => n != null && !isNaN(n) ? Number(n).toFixed(dec) : '—'
 export const fmtB   = n => {

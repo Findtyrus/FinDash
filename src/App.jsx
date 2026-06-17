@@ -5,6 +5,9 @@ import ValuationPanel from './components/ValuationPanel'
 import FinancialsPanel from './components/FinancialsPanel'
 import NewsPanel from './components/NewsPanel'
 import ScoutPanel from './components/ScoutPanel'
+import PeerPanel from './components/PeerPanel'
+import EarningsPanel from './components/EarningsPanel'
+import CongressPanel from './components/CongressPanel'
 import { useTickerData } from './hooks/useTickerData'
 import { fmt, fmtB, fmtX, fmtVol } from './lib/api'
 
@@ -12,11 +15,13 @@ const QUICK_PICKS = ['AAPL', 'TSLA', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOG', 'BR
 
 export default function App() {
   const [inputVal, setInputVal] = useState('')
+  const [benchmarks, setBenchmarks] = useState(null)
   const { loading, error, data, ticker, load, isLive } = useTickerData()
   const inputRef = useRef(null)
 
   const handleLoad = (sym) => {
     const t = sym || inputVal
+    setBenchmarks(null)
     load(t)
     if (sym) setInputVal(sym)
   }
@@ -126,6 +131,7 @@ export default function App() {
                 metrics={data.fmp?.metrics}
                 profile={data.fmp?.profile}
                 recommendation={data.fmp?.recommendation}
+                onBenchmarks={setBenchmarks}
               />
 
               <div className="card">
@@ -163,8 +169,11 @@ export default function App() {
                 <PriceChart history={data.history} />
               </div>
 
-              <ValuationPanel metrics={data.fmp?.metrics} hasFmp={!!data.fmp} />
+              <ValuationPanel metrics={data.fmp?.metrics} hasFmp={!!data.fmp} benchmarks={benchmarks} />
               <FinancialsPanel metrics={data.fmp?.metrics} hasFmp={!!data.fmp} />
+              <PeerPanel ticker={ticker} currentMetrics={data.fmp?.metrics} />
+              <EarningsPanel ticker={ticker} />
+              <CongressPanel ticker={ticker} />
               <NewsPanel news={data.fmp?.news} hasFmp={!!data.fmp} />
             </>
           )}
