@@ -1,19 +1,34 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchYFQuote, fmt } from '../lib/api'
+import { fetchYFQuote } from '../lib/api'
 
 const DEFAULT_WATCHLIST = ['AAPL', 'TSLA', 'MSFT', 'NVDA', 'AMZN']
 
 export default function Sidebar({ activeTicker, onSelect }) {
-  const [watchlist, setWatchlist]     = useState(DEFAULT_WATCHLIST)
-  const [prices, setPrices]           = useState({})
-  const [addInput, setAddInput]       = useState('')
-  const [recents, setRecents]         = useState([])
-  const [alerts, setAlerts]           = useState(() => JSON.parse(localStorage.getItem('findash-alerts') || '{}'))
+  const [watchlist, setWatchlist]       = useState(DEFAULT_WATCHLIST)
+  const [prices, setPrices]             = useState({})
+  const [addInput, setAddInput]         = useState('')
+  const [recents, setRecents]           = useState([])
+  const [alerts, setAlerts]             = useState(() => JSON.parse(localStorage.getItem('findash-alerts') || '{}'))
   const [alertEditing, setAlertEditing] = useState(null)
-  const [alertInput, setAlertInput]   = useState('')
-  const alertsRef = useRef(alerts)
+  const [alertInput, setAlertInput]     = useState('')
+  const [botToken, setBotToken]         = useState(() => localStorage.getItem('findash-bot-token') || '')
+  const [chatId, setChatId]             = useState(() => localStorage.getItem('findash-chat-id') || '')
+  const [testStatus, setTestStatus]     = useState(null)
+  const [toast, setToast]               = useState(null)
+  const alertsRef   = useRef(alerts)
+  const botTokenRef = useRef(botToken)
+  const chatIdRef   = useRef(chatId)
 
-  useEffect(() => { alertsRef.current = alerts }, [alerts])
+  useEffect(() => { alertsRef.current = alerts },     [alerts])
+  useEffect(() => { botTokenRef.current = botToken }, [botToken])
+  useEffect(() => { chatIdRef.current = chatId },     [chatId])
+
+  // Auto-dismiss toast after 4s
+  useEffect(() => {
+    if (!toast) return
+    const id = setTimeout(() => setToast(null), 4000)
+    return () => clearTimeout(id)
+  }, [toast])
 
   const handleSelect = (ticker) => {
     setRecents(prev => [ticker, ...prev.filter(t => t !== ticker)].slice(0, 5))
@@ -33,27 +48,41 @@ export default function Sidebar({ activeTicker, onSelect }) {
       })
       setPrices(map)
 
-      // Check alert conditions
-      Object.entries(alertsRef.current).forEach(([t, alert]) => {
-        const price = map[t]?.price
-        if (!price) return
-        const triggered = (alert.above && price >= alert.above) || (alert.below && price <= alert.below)
-        if (triggered) {
-          const alertPrice = alert.above || alert.below
-          if (Notification.permission === 'granted') {
-            new Notification(`FinDash Alert: ${t}`, {
-              body: `${t} hit your target price of $${alertPrice}`,
+      // Check alerts via Telegram if configured
+      const currentAlerts = alertsRef.current
+      const token = botTokenRef.current
+      const chat  = chatIdRef.current
+      const alertsArray = Object.entries(currentAlerts).map(([ticker, alert]) => ({
+        ticker,
+        targetPrice: alert.above || alert.below,
+        direction: alert.above ? 'above' : 'below',
+      }))
+
+      if (alertsArray.length === 0 || !token || !chat) return
+
+      try {
+        const checkRes = await fetch('/api/check-alerts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alerts: alertsArray, chatId: chat, botToken: token }),
+        })
+        const { fired } = await checkRes.json()
+        if (fired && fired.length > 0) {
+          fired.forEach(ticker => {
+            setAlerts(prev => {
+              const next = { ...prev }
+              delete next[ticker]
+              localStorage.setItem('findash-alerts', JSON.stringify(next))
+              return next
             })
-          }
-          setAlerts(prev => {
-            const next = { ...prev }
-            delete next[t]
-            localStorage.setItem('findash-alerts', JSON.stringify(next))
-            return next
+            setToast(`Alert sent to Telegram for ${ticker}`)
           })
         }
-      })
+      } catch {
+        // silent fail — don't disrupt price display if alerts API is down
+      }
     }
+
     fetchAll()
     const id = setInterval(fetchAll, 60_000)
     return () => clearInterval(id)
@@ -79,7 +108,6 @@ export default function Sidebar({ activeTicker, onSelect }) {
   const saveAlert = (t) => {
     const price = parseFloat(alertInput)
     if (isNaN(price) || price <= 0) return
-    Notification.requestPermission()
     const currentPrice = prices[t]?.price
     const alert = currentPrice && price > currentPrice ? { above: price } : { below: price }
     const newAlerts = { ...alerts, [t]: alert }
@@ -96,11 +124,44 @@ export default function Sidebar({ activeTicker, onSelect }) {
     localStorage.setItem('findash-alerts', JSON.stringify(newAlerts))
   }
 
+  const saveBotToken = (val) => {
+    setBotToken(val)
+    localStorage.setItem('findash-bot-token', val)
+  }
+
+  const saveChatId = (val) => {
+    setChatId(val)
+    localStorage.setItem('findash-chat-id', val)
+  }
+
+  const testConnection = async () => {
+    if (!botToken || !chatId) { setTestStatus('error'); return }
+    setTestStatus('loading')
+    try {
+      const r = await fetch('/api/telegram-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, botToken }),
+      })
+      const d = await r.json()
+      setTestStatus(d.ok ? 'ok' : 'error')
+    } catch {
+      setTestStatus('error')
+    }
+    setTimeout(() => setTestStatus(null), 3000)
+  }
+
   return (
     <aside className="w-56 flex-shrink-0 border-r border-neutral-800 bg-neutral-950 flex flex-col overflow-hidden">
       <div className="px-4 py-4 border-b border-neutral-800">
         <span className="text-sm font-medium text-white tracking-wide">⬡ FinDash</span>
       </div>
+
+      {toast && (
+        <div className="px-3 py-2 bg-green-900/80 text-green-300 text-xs border-b border-green-800">
+          {toast}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 pt-3 pb-1">
@@ -211,7 +272,64 @@ export default function Sidebar({ activeTicker, onSelect }) {
         )}
       </div>
 
-      <div className="px-3 py-3 border-t border-neutral-800">
+      {/* Telegram alert settings */}
+      <div className="border-t border-neutral-800">
+        <details className="group">
+          <summary className="px-3 py-2.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300 flex items-center gap-1.5 select-none list-none">
+            <span>⚙️</span>
+            <span>Alert Settings</span>
+            <span className="ml-auto group-open:rotate-180 transition-transform">▾</span>
+          </summary>
+
+          <div className="px-3 pb-3 space-y-2">
+            <input
+              type="password"
+              value={botToken}
+              onChange={e => saveBotToken(e.target.value)}
+              placeholder="Telegram Bot Token"
+              className="w-full text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-1.5 text-white placeholder-neutral-600 focus:border-brand-400 outline-none"
+            />
+            <input
+              type="text"
+              value={chatId}
+              onChange={e => saveChatId(e.target.value)}
+              placeholder="Chat ID"
+              className="w-full text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-1.5 text-white placeholder-neutral-600 focus:border-brand-400 outline-none"
+            />
+            <button
+              onClick={testConnection}
+              disabled={testStatus === 'loading'}
+              className={`w-full text-xs rounded px-2 py-1.5 transition-colors ${
+                testStatus === 'ok'    ? 'bg-green-700 text-green-200' :
+                testStatus === 'error' ? 'bg-red-800 text-red-200' :
+                'bg-neutral-700 hover:bg-neutral-600 text-neutral-300'
+              }`}
+            >
+              {testStatus === 'loading' ? 'Testing...' :
+               testStatus === 'ok'      ? '✅ Connected!' :
+               testStatus === 'error'   ? '❌ Failed' :
+               'Test Connection'}
+            </button>
+
+            <details className="mt-1">
+              <summary className="text-xs text-neutral-600 cursor-pointer hover:text-neutral-400 select-none list-none">
+                How to set up ▾
+              </summary>
+              <ol className="text-xs text-neutral-600 mt-1.5 space-y-1 leading-relaxed list-decimal pl-3">
+                <li>Message @BotFather on Telegram</li>
+                <li>Send /newbot and follow prompts</li>
+                <li>Copy the bot token above</li>
+                <li>Message your new bot once</li>
+                <li>Visit api.telegram.org/bot{'{TOKEN}'}/getUpdates</li>
+                <li>Copy the chat_id from the response</li>
+                <li>Paste both fields and click Test</li>
+              </ol>
+            </details>
+          </div>
+        </details>
+      </div>
+
+      <div className="px-3 py-2.5 border-t border-neutral-800">
         <div className="text-xs text-neutral-600 leading-relaxed">
           Data: <span className="text-green-700">Yahoo Finance</span> · <span className="text-brand-600">Finnhub</span>
         </div>
