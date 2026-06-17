@@ -1,6 +1,8 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { fmt, fmtB, fmtX } from '../lib/api'
 
+const analysisCache = {}
+
 const RATING_STYLES = {
   BUY: 'bg-green-600 text-white',
   HOLD: 'bg-amber-500 text-amber-950',
@@ -67,6 +69,13 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
   useEffect(() => {
     if (!ticker || !hasFmpData) return
 
+    if (analysisCache[ticker]) {
+      setAnalysis(analysisCache[ticker].analysis)
+      setQuestions(analysisCache[ticker].questions)
+      setBriefLoading(false)
+      return
+    }
+
     if (!initialQuoteRef.current || initialQuoteRef.current.symbol !== ticker) {
       initialQuoteRef.current = quote
     }
@@ -84,6 +93,7 @@ export default function ScoutPanel({ ticker, quote, metrics, profile, recommenda
       .then(text => {
         if (reqRef.current !== myReq) return
         const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
+        analysisCache[ticker] = { analysis: parsed, questions: parsed.questions || [] }
         setAnalysis(parsed)
         setQuestions(parsed.questions || [])
       })
